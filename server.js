@@ -1,53 +1,53 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json({ limit: '15mb' }));
-app.use(express.urlencoded({ extended: true, limit: '15mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.static('public'));
 
-// Mock Database
-let db = {
-    products: [
-        { id: 1, outlet: 'Cabang Paris', name: 'Es Teler Spesial Durian', buyPrice: 12000, sellPrice: 18000, stock: 45, image: 'https://images.unsplash.com/photo-1563227812-0ea4c22e6cc8?w=300' }
-    ],
-    transactions: []
-};
+// --- NOMOR 2: FUNGSI HELPER PERSISTENSI JSON ---
+const DB_PATH = path.join(__dirname, 'db.json');
 
-// API: Ambil semua data
+function loadData() {
+    if (!fs.existsSync(DB_PATH)) {
+        const initialData = { products: [], transactions: [] };
+        fs.writeFileSync(DB_PATH, JSON.stringify(initialData, null, 2));
+        return initialData;
+    }
+    try {
+        const raw = fs.readFileSync(DB_PATH, 'utf-8');
+        return JSON.parse(raw);
+    } catch (err) {
+        console.error("Gagal membaca db.json", err);
+        return { products: [], transactions: [] };
+    }
+}
+
+function saveData(data) {
+    try {
+        fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+    } catch (err) {
+        console.error("Gagal menyimpan data ke db.json:", err);
+    }
+}
+
+let db = loadData();
+
+// --- RUTE API ---
+
+// 1. Get All Data
 app.get('/api/data', (req, res) => {
     res.json(db);
 });
 
-// API: Tambah Produk
+// 2. Tambah Produk Baru
 app.post('/api/products', (req, res) => {
-    const { outlet, name, buyPrice, sellPrice, stock, imageBase64, imageName } = req.body;
-    
-    let finalImage = 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=300';
-
-    if (imageBase64 && imageName) {
-        try {
-            const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-            const uniqueName = Date.now() + '_' + imageName.replace(/\s+/g, '_');
-            const uploadPath = path.join(__dirname, 'public', 'uploads', uniqueName);
-            
-            // Buat folder uploads jika belum ada
-            if (!fs.existsSync(path.join(__dirname, 'public', 'uploads'))) {
-                fs.mkdirSync(path.join(__dirname, 'public', 'uploads'), { recursive: true });
-            }
-
-            fs.writeFileSync(uploadPath, base64Data, 'base64');
-            finalImage = `/uploads/${uniqueName}`;
-        } catch (err) {
-            console.error("Gagal menyimpan gambar:", err);
-        }
-    }
-
+    const { outlet, name, buyPrice, sellPrice, stock, imageBase64 } = req.body;
     const newProduct = {
         id: Date.now(),
         outlet,
@@ -55,82 +55,78 @@ app.post('/api/products', (req, res) => {
         buyPrice: Number(buyPrice),
         sellPrice: Number(sellPrice),
         stock: Number(stock),
-        image: finalImage
+        image: imageBase64 || "https://via.placeholder.com/150"
     };
     db.products.push(newProduct);
+    
+    saveData(db); // <-- NOMOR 3: SIMPAN KE DB.JSON
     res.json({ success: true, product: newProduct });
 });
 
-// API: Edit Produk
+// 3. Edit Produk
 app.put('/api/products/:id', (req, res) => {
-    const productId = Number(req.params.id);
-    const { outlet, name, buyPrice, sellPrice, stock, imageBase64, imageName } = req.body;
-    
-    const product = db.products.find(p => p.id === productId);
-    if (!product) {
-        return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
+    const id = Number(req.params.id);
+    const { outlet, name, buyPrice, sellPrice, stock, imageBase64 } = req.body;
+    const index = db.products.findIndex(p => p.id === id);
+    if (index !== -1) {
+        db.products[index] = {
+            ...db.products[index],
+            outlet,
+            name,
+            buyPrice: Number(buyPrice),
+            sellPrice: Number(sellPrice),
+            stock: Number(stock),
+            ...(imageBase64 && { image: imageBase64 })
+        };
+        
+        saveData(db); // <-- NOMOR 3: SIMPAN KE DB.JSON
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ success: false, message: "Produk tidak ditemukan" });
     }
-
-    product.outlet = outlet || product.outlet;
-    product.name = name || product.name;
-    product.buyPrice = buyPrice !== undefined ? Number(buyPrice) : product.buyPrice;
-    product.sellPrice = sellPrice !== undefined ? Number(sellPrice) : product.sellPrice;
-    product.stock = stock !== undefined ? Number(stock) : product.stock;
-
-    if (imageBase64 && imageName) {
-        try {
-            const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-            const uniqueName = Date.now() + '_' + imageName.replace(/\s+/g, '_');
-            const uploadPath = path.join(__dirname, 'public', 'uploads', uniqueName);
-            
-            if (!fs.existsSync(path.join(__dirname, 'public', 'uploads'))) {
-                fs.mkdirSync(path.join(__dirname, 'public', 'uploads'), { recursive: true });
-            }
-
-            fs.writeFileSync(uploadPath, base64Data, 'base64');
-            product.image = `/uploads/${uniqueName}`;
-        } catch (err) {
-            console.error("Gagal memperbarui gambar:", err);
-        }
-    }
-
-    res.json({ success: true, product });
 });
 
-// API: Hapus Produk
+// 4. Hapus Produk
 app.delete('/api/products/:id', (req, res) => {
-    const productId = Number(req.params.id);
-    const index = db.products.findIndex(p => p.id === productId);
+    const id = Number(req.params.id);
+    db.products = db.products.filter(p => p.id !== id);
     
-    if (index === -1) {
-        return res.status(404).json({ success: false, message: 'Produk tidak ditemukan' });
-    }
-
-    db.products.splice(index, 1);
-    res.json({ success: true, message: 'Produk berhasil dihapus' });
+    saveData(db); // <-- NOMOR 3: SIMPAN KE DB.JSON
+    res.json({ success: true });
 });
 
-// API: Transaksi (Tanpa cetak struk otomatis)
+// 5. Transaksi Baru (Checkout)
 app.post('/api/transactions', (req, res) => {
     const { outlet, items, total, modal, payment } = req.body;
+    const newTx = {
+        id: Date.now(),
+        outlet,
+        items,
+        total,
+        modal,
+        payment,
+        date: new Date().toISOString()
+    };
+    db.transactions.push(newTx);
+    
+    // Potong stok produk otomatis
     items.forEach(item => {
-        const product = db.products.find(p => p.outlet === outlet && p.name === item.name);
-        if (product) product.stock -= item.qty;
+        const prod = db.products.find(p => p.name === item.name);
+        if (prod) prod.stock -= item.qty;
     });
 
-    const newTx = { id: Date.now(), outlet, date: new Date().toISOString(), items, total, modal, payment };
-    db.transactions.push(newTx);
-    res.json({ success: true, transaction: newTx });
+    saveData(db); // <-- NOMOR 3: SIMPAN KE DB.JSON
+    res.json({ success: true });
 });
-// Tangkap semua rute lain dan arahkan ke frontend (index.html)
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-// API: Reset Laporan Keuangan / Hapus Semua Transaksi
+
+// 6. Reset Laporan Keuangan
 app.delete('/api/transactions/reset', (req, res) => {
-    db.transactions = []; // Mengosongkan array transaksi
+    db.transactions = [];
+    
+    saveData(db); // <-- NOMOR 3: SIMPAN KE DB.JSON
     res.json({ success: true, message: 'Laporan keuangan berhasil direset ke nol!' });
 });
+
 app.listen(PORT, () => {
-    console.log(`Server ES Teler li Mbo'e berjalan di http://localhost:${PORT}`);
+    console.log(`Server ES Teler li Mbo'e berjalan di port ${PORT}`);
 });
