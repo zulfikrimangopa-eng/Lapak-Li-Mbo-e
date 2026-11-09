@@ -122,7 +122,15 @@ app.post('/api/transactions', (req, res) => {
     db.transactions.push(newTx);
     res.json({ success: true, transaction: newTx });
 });
-
+// Tangkap semua rute lain dan arahkan ke frontend (index.html)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+// API: Reset Laporan Keuangan / Hapus Semua Transaksi
+app.delete('/api/transactions/reset', (req, res) => {
+    db.transactions = []; // Mengosongkan array transaksi
+    res.json({ success: true, message: 'Laporan keuangan berhasil direset ke nol!' });
+});
 app.listen(PORT, () => {
     console.log(`Server ES Teler li Mbo'e berjalan di http://localhost:${PORT}`);
 });
