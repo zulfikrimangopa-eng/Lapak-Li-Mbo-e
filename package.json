@@ -1,0 +1,23 @@
+{
+"scripts": {
+  "start": "node server.js"
+}
+  "name": "Lapak li Mbo'e",
+  "short_name": "Li Mbo'e",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#047857",
+  "icons": [
+    {
+      "src": "/uploads/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/uploads/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

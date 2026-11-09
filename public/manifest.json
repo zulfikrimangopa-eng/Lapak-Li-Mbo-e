@@ -1,0 +1,15 @@
+{
+  "name": "ES Teler li Mbo'e",
+  "short_name": "ES Teler",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
