@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#047857">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#047857">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ES Teler li Mbo'e</title>
@@ -104,10 +104,19 @@
 
         <!-- TAB LAPORAN -->
         <section id="tab-reports" class="tab-content hidden space-y-4">
-            <div class="bg-white p-4 rounded-xl shadow-sm border">
-                <h2 class="text-lg font-bold text-gray-800">Laporan Keuangan & Rekapan</h2>
-                <p class="text-xs text-gray-500">Ringkasan transaksi dan keuntungan bersih.</p>
+            <!-- HEADER TAB DENGAN TOMBOL RESET -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">Laporan Keuangan & Rekapan</h2>
+                    <p class="text-xs text-gray-500">Ringkasan transaksi dan keuntungan bersih.</p>
+                </div>
+                <button 
+                    onclick="resetLaporanKeuangan()" 
+                    class="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs py-2 px-3 rounded-lg shadow transition duration-200 flex items-center gap-1 cursor-pointer">
+                    🗑️ Reset Laporan
+                </button>
             </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="bg-white p-4 rounded-xl border shadow-sm">
                     <p class="text-xs text-gray-500 font-semibold">Total Pendapatan</p>
@@ -122,6 +131,7 @@
                     <h3 id="reportTotalTx" class="text-xl font-bold text-gray-800 mt-1">0</h3>
                 </div>
             </div>
+            
             <div class="bg-white rounded-xl shadow-sm border p-4">
                 <h3 class="font-bold text-gray-800 mb-3 text-sm">Riwayat Transaksi</h3>
                 <div id="transactionHistoryList" class="space-y-2 text-sm text-gray-600">
@@ -129,6 +139,7 @@
                 </div>
             </div>
         </section>
+
     </main>
 
     <!-- MODAL TAMBAH PRODUK -->
@@ -584,13 +595,38 @@
             document.getElementById('reportProfit').innerText = `Rp ${totalProfit.toLocaleString()}`;
             document.getElementById('reportTotalTx').innerText = filtered.length;
         }
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(() => console.log("Service Worker terdaftar!"))
-            .catch(err => console.log("Gagal daftar SW:", err));
-    });
-}
+
+        // FUNGSI RESET LAPORAN KEUANGAN
+        async function resetLaporanKeuangan() {
+            const konfirmasi = confirm("Apakah Anda yakin ingin mereset seluruh data laporan keuangan dan histori transaksi? Tindakan ini tidak dapat dibatalkan.");
+            
+            if (konfirmasi) {
+                try {
+                    const response = await fetch('/api/transactions/reset', {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert(result.message);
+                        fetchData();
+                    } else {
+                        alert("Gagal mereset laporan keuangan.");
+                    }
+                } catch (error) {
+                    console.error("Gagal mereset laporan keuangan:", error);
+                    alert("Terjadi kesalahan saat mereset laporan keuangan.");
+                }
+            }
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(() => console.log("Service Worker terdaftar!"))
+                    .catch(err => console.log("Gagal daftar SW:", err));
+            });
+        }
 
         // Inisialisasi awal data saat halaman dimuat
         fetchData();
