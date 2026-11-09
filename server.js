@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
-// --- NOMOR 2: FUNGSI HELPER PERSISTENSI JSON ---
+// --- FUNGSI HELPER PERSISTENSI JSON ---
 const DB_PATH = path.join(__dirname, 'db.json');
 
 function loadData() {
@@ -45,22 +45,30 @@ app.get('/api/data', (req, res) => {
     res.json(db);
 });
 
-// 2. Tambah Produk Baru
+// 2. Tambah Produk Baru (Mendukung Opsi 'SEMUA' Cabang)
 app.post('/api/products', (req, res) => {
     const { outlet, name, buyPrice, sellPrice, stock, imageBase64 } = req.body;
-    const newProduct = {
-        id: Date.now(),
-        outlet,
-        name,
-        buyPrice: Number(buyPrice),
-        sellPrice: Number(sellPrice),
-        stock: Number(stock),
-        image: imageBase64 || "https://via.placeholder.com/150"
-    };
-    db.products.push(newProduct);
     
-    saveData(db); // <-- NOMOR 3: SIMPAN KE DB.JSON
-    res.json({ success: true, product: newProduct });
+    // Jika memilih SEMUA, buat produk untuk kedua cabang
+    const targetOutlets = (outlet === 'SEMUA') 
+        ? ['Cabang Paris', 'Cabang Bandung Rejo'] 
+        : [outlet];
+
+    targetOutlets.forEach((targetOutlet, index) => {
+        const newProduct = {
+            id: Date.now() + index, // Tambahkan index agar ID tetap unik
+            outlet: targetOutlet,
+            name,
+            buyPrice: Number(buyPrice),
+            sellPrice: Number(sellPrice),
+            stock: Number(stock),
+            image: imageBase64 || "https://via.placeholder.com/150"
+        };
+        db.products.push(newProduct);
+    });
+    
+    saveData(db);
+    res.json({ success: true });
 });
 
 // 3. Edit Produk
@@ -79,7 +87,7 @@ app.put('/api/products/:id', (req, res) => {
             ...(imageBase64 && { image: imageBase64 })
         };
         
-        saveData(db); // <-- NOMOR 3: SIMPAN KE DB.JSON
+        saveData(db);
         res.json({ success: true });
     } else {
         res.status(404).json({ success: false, message: "Produk tidak ditemukan" });
@@ -91,7 +99,7 @@ app.delete('/api/products/:id', (req, res) => {
     const id = Number(req.params.id);
     db.products = db.products.filter(p => p.id !== id);
     
-    saveData(db); // <-- NOMOR 3: SIMPAN KE DB.JSON
+    saveData(db);
     res.json({ success: true });
 });
 
@@ -111,11 +119,11 @@ app.post('/api/transactions', (req, res) => {
     
     // Potong stok produk otomatis
     items.forEach(item => {
-        const prod = db.products.find(p => p.name === item.name);
+        const prod = db.products.find(p => p.name === item.name && (p.outlet === outlet || outlet === 'OWNER'));
         if (prod) prod.stock -= item.qty;
     });
 
-    saveData(db); // <-- NOMOR 3: SIMPAN KE DB.JSON
+    saveData(db);
     res.json({ success: true });
 });
 
@@ -123,7 +131,7 @@ app.post('/api/transactions', (req, res) => {
 app.delete('/api/transactions/reset', (req, res) => {
     db.transactions = [];
     
-    saveData(db); // <-- NOMOR 3: SIMPAN KE DB.JSON
+    saveData(db);
     res.json({ success: true, message: 'Laporan keuangan berhasil direset ke nol!' });
 });
 
